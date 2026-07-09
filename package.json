@@ -1,0 +1,26 @@
+{
+  "name": "ai-gateway",
+  "version": "0.1.0",
+  "description": "AI orchestration gateway",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bilalshemsu1/ai-gateway.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bilalshemsu1/ai-gateway/issues"
+  },
+  "homepage": "https://github.com/bilalshemsu1/ai-gateway#readme",
+  "dependencies": {
+    "axios": "^1.18.1",
+    "fastify": "^5.10.0"
+  }
+}
