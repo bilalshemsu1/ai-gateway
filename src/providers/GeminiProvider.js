@@ -12,7 +12,7 @@ import axios from 'axios';
 export class GeminiProvider extends BaseProvider {
     constructor(model) {
         super('Gemini');
-        this.model = model;
+        this.model = model || 'gemini-2.0-flash';
         this.apiKey = process.env.GEMINI_API_KEY;
         this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
     }
@@ -24,24 +24,24 @@ export class GeminiProvider extends BaseProvider {
      * @returns {Object} Response with output, provider, model
      */
     async generate(prompt) {
+        const url = `${this.baseUrl}/models/${this.model}:generateContent`;
+        const payload = {
+            contents: [{ parts: [{ text: prompt }] }]
+        };
         const response = await axios.post(
-            `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`,
-            {
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
-                }]
-            },
+            url,
+            payload,
             {
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': this.apiKey
                 }
             }
         );
-
+        const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error('No response text from Gemini');
         return {
-            output: response.data.candidates[0].content.parts[0].text,
+            output: text,
             provider: this.name,
             model: this.model
         };
@@ -54,12 +54,12 @@ export class GeminiProvider extends BaseProvider {
      */
     async checkAvailability() {
         try {
-            // Try to list models - if works, API is available
             await axios.get(
                 `${this.baseUrl}/models?key=${this.apiKey}`
             );
             return true;
         } catch (error) {
+            console.log('[Gemini] Availability check failed:', error.message);
             return false;
         }
     }

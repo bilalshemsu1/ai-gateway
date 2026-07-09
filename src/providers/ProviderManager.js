@@ -76,6 +76,24 @@ export class ProviderManager {
     }
 
     /**
+     * Get all providers sorted by least busy (for failover)
+     * 
+     * Returns array like: [openCodeZen, gemini, openRouter]
+     * (sorted by fewest requests first)
+     */
+    getAllProviders() {
+        const providerNames = Object.keys(this.providers);
+        
+        // Sort by request count (least busy first)
+        providerNames.sort((a, b) => {
+            return this.requestCount[a] - this.requestCount[b];
+        });
+
+        // Return provider objects in order
+        return providerNames.map(name => this.providers[name]);
+    }
+
+    /**
      * Get status of all providers
      * 
      * Returns:
@@ -116,7 +134,7 @@ export class ProviderManager {
     initialize() {
         // Check if Gemini API key exists
         if (process.env.GEMINI_API_KEY) {
-            this.register(new GeminiProvider('gemini-2.5-flash-lite'));
+            this.register(new GeminiProvider());
         } else {
             console.log('[ProviderManager] Skipping Gemini (no API key)');
         }
@@ -130,7 +148,7 @@ export class ProviderManager {
 
         // Check if OpenCode Zen API key exists
         if (process.env.OPENCODE_API_KEY) {
-            this.register(new OpenCodeZenProvider('deepseek-v4-flash-free'));
+            this.register(new OpenCodeZenProvider('north-mini-code-free'));
         } else {
             console.log('[ProviderManager] Skipping OpenCode Zen (no API key)');
         }

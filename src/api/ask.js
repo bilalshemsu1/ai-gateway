@@ -11,23 +11,29 @@ export default async function askRoutes(fastify, options) {
     fastify.post('/v1/chat', async (request, reply) => {
         const { prompt, model } = request.body;
 
+        console.log('\n--- NEW REQUEST ---');
+        console.log('Prompt:', prompt);
+        console.log('Model:', model || 'auto');
+
         // ========================================
         // STEP 1: VALIDATE INPUT
         // ========================================
         
-        // Check if prompt exists and is a string
         if (!prompt || typeof prompt !== 'string') {
+            console.log('ERROR: Invalid prompt');
             return reply.status(400).send({
                 error: 'Missing or invalid "prompt" field'
             });
         }
 
-        // Check prompt length
         if (prompt.length > 10000) {
+            console.log('ERROR: Prompt too long');
             return reply.status(400).send({
                 error: 'Prompt too long. Maximum 10000 characters.'
             });
         }
+
+        console.log('✓ Input valid');
 
         // ========================================
         // STEP 2: GET PROVIDER
@@ -36,41 +42,67 @@ export default async function askRoutes(fastify, options) {
         const provider = fastify.providerManager.getBestProvider(model);
         
         if (!provider) {
+            console.log('ERROR: No providers available');
             return reply.status(503).send({
                 error: 'No AI providers available'
             });
         }
 
+        console.log('✓ Provider selected:', provider.name);
+
         // ========================================
-        // STEP 3: CALL AI PROVIDER
+        // STEP 3: CALL AI PROVIDER (with failover)
         // ========================================
         
-        try {
-            const startTime = Date.now();
-            
-            // Call the AI provider
-            const result = await provider.generate(prompt);
-            
-            const responseTime = Date.now() - startTime;
+        // Get all providers sorted by least busy
+        const allProviders = fastify.providerManager.getAllProviders();
+        console.log('Available providers for failover:', allProviders.map(p => p.name).join(', '));
 
-            // ========================================
-            // STEP 4: RETURN RESULT
-            // ========================================
-            
-            return {
-                answer: result.output,
-                provider: result.provider,
-                model: result.model,
-                response_time: responseTime
-            };
+        // Try each provider until one works
+        for (const currentProvider of allProviders) {
+            try {
+                const startTime = Date.now();
+                
+                console.log('Trying provider:', currentProvider.name);
+                const result = await currentProvider.generate(prompt);
+                
+                const responseTime = Date.now() - startTime;
+                console.log('✓ Provider responded in', responseTime, 'ms');
 
-        } catch (error) {
-            // Provider failed
-            return reply.status(500).send({
-                error: 'AI provider failed',
-                message: error.message
-            });
+                // ========================================
+                // STEP 4: RETURN RESULT
+                // ========================================
+                
+                console.log('✓ Returning result');
+                return {
+                    answer: result.output,
+                    provider: result.provider,
+                    model: result.model,
+                    response_time: responseTime
+                };
+
+            } catch (error) {
+                // Log the error but don't return yet — try next provider
+                console.log(`✗ ${currentProvider.name} failed:`, error.message);
+                
+                if (error.response) {
+                    console.log('  HTTP Status:', error.response.status);
+                }
+                
+                // Continue to next provider in the loop
+                continue;
+            }
         }
+
+        // ========================================
+        // ALL PROVIDERS FAILED
+        // ========================================
+        
+        console.log('\n--- ALL PROVIDERS FAILED ---');
+        return reply.status(500).send({
+            error: 'All AI providers failed',
+            tried: allProviders.map(p => p.name)
+        });
     });
 
     // GET /v1/providers - List available providers
