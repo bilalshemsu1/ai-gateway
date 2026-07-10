@@ -6,7 +6,8 @@ Open-source AI orchestration service. One API, multiple AI providers.
 
 - Multiple AI providers (Gemini, Groq, Mistral, OpenRouter, OpenCodeZen)
 - Automatic failover when a provider fails
-- Rate limiting (30 requests/minute per IP)
+- Rate limiting (15 requests/minute per IP)
+- Token authentication
 - Load balancing across providers
 - OpenAI-compatible API format
 
@@ -22,7 +23,7 @@ npm install
 
 # Setup environment
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your API keys and auth token
 
 # Run
 npm start
@@ -33,6 +34,10 @@ npm start
 Create `.env` file:
 
 ```
+# Auth (required)
+API_SECRET=your-secret-token
+
+# AI Providers (at least one required)
 GEMINI_API_KEY=your_key
 GROQ_API_KEY=your_key
 MISTRAL_API_KEY=your_key
@@ -49,10 +54,13 @@ Get free API keys:
 
 ## API
 
+All requests to `/v1/chat` require authentication.
+
 **Chat:**
 ```bash
 curl -X POST http://localhost:3001/v1/chat \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-secret" \
   -d '{"prompt": "Hello", "model": "auto"}'
 ```
 
@@ -66,12 +74,21 @@ curl -X POST http://localhost:3001/v1/chat \
 }
 ```
 
-**Health check:**
+**Without auth (fails):**
+```bash
+curl -X POST http://localhost:3001/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello"}'
+
+# Returns: 401 Unauthorized
+```
+
+**Health check (no auth required):**
 ```bash
 curl http://localhost:3001/health
 ```
 
-**List providers:**
+**List providers (no auth required):**
 ```bash
 curl http://localhost:3001/v1/providers
 ```
@@ -80,6 +97,8 @@ curl http://localhost:3001/v1/providers
 
 ```
 User Request
+    ↓
+Auth Check (Authorization: Bearer <token>)
     ↓
 Rate Limit Check
     ↓
