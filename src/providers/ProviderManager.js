@@ -10,6 +10,8 @@
 import { GeminiProvider } from './GeminiProvider.js';
 import { OpenRouterProvider } from './OpenRouterProvider.js';
 import { OpenCodeZenProvider } from './OpenCodeZenProvider.js';
+import { MistralProvider } from './MistralProvider.js';
+import { GroqProvider } from './GroqProvider.js';
 
 export class ProviderManager {
     constructor() {
@@ -144,6 +146,20 @@ export class ProviderManager {
             this.register(new OpenRouterProvider());
         } else {
             console.log('[ProviderManager] Skipping OpenRouter (no API key)');
+        }
+
+        // Check if Mistral API key exists
+        if (process.env.MISTRAL_API_KEY) {
+            this.register(new MistralProvider());
+        } else {
+            console.log('[ProviderManager] Skipping Mistral (no API key)');
+        }
+
+        // Check if Groq API key exists
+        if (process.env.GROQ_API_KEY) {
+            this.register(new GroqProvider());
+        } else {
+            console.log('[ProviderManager] Skipping Groq (no API key)');
         }
 
         // Check if OpenCode Zen API key exists

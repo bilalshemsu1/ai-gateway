@@ -1,6 +1,6 @@
 const clients = {}
 
-function rateLimit(ip, limit =2, windowMs = 60 * 1000) {
+function rateLimit(ip, limit = 15, windowMs = 60 * 1000) {
     const now = Date.now();
 
     if (!clients[ip] || now > clients[ip].resetAt) {
