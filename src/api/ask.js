@@ -5,12 +5,29 @@
  * Flow: Request → Validate → Provider → Response
  */
 import { rateLimit } from '../middleware/rateLimiter.js';
+import { auth } from '../middleware/auth.js';
 
 export default async function askRoutes(fastify, options) {
 
     // POST /v1/chat - Send a prompt to AI
     fastify.post('/v1/chat', async (request, reply) => {
+        console.log('[Handler] Request received');
+        
+        // ========================================
+        // STEP 0: AUTH CHECK
+        // ========================================
+        const authHeader = request.headers.authorization;
+        if (!authHeader) {
+            return reply.status(401).send({ error: 'Unauthorized', message: 'Missing Authorization header' });
+        }
+        const token = authHeader.replace('Bearer ', '');
+        if (token !== process.env.API_SECRET) {
+            return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid token' });
+        }
+        console.log('[Auth] Token valid');
+        
         const { prompt, model } = request.body;
+        console.log('[Handler] Body parsed, prompt:', prompt);
 
         console.log('\n--- NEW REQUEST ---');
         console.log('Prompt:', prompt);
