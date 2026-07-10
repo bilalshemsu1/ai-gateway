@@ -4,6 +4,7 @@
  * Simple version: Direct provider call, no queue
  * Flow: Request → Validate → Provider → Response
  */
+import { rateLimit } from '../middleware/rateLimiter.js';
 
 export default async function askRoutes(fastify, options) {
 
@@ -40,13 +41,18 @@ export default async function askRoutes(fastify, options) {
         // ========================================
         
         const provider = fastify.providerManager.getBestProvider(model);
-        
-        if (!provider) {
-            console.log('ERROR: No providers available');
-            return reply.status(503).send({
-                error: 'No AI providers available'
+        const ip = request.ip
+        const limitResult = rateLimit(ip)
+
+        if (!limitResult.allowed) {
+            console.log('ERROR: Rate limit exceeded for IP:', ip);
+            return reply.status(429).send({
+                error: 'Too many requests',
+                retryAfter: limitResult.retryAfter,
+                message: `Rate limit exceeded. Try again in ${limitResult.retryAfter} seconds.`
             });
         }
+        
 
         console.log('✓ Provider selected:', provider.name);
 
