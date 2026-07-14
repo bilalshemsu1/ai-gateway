@@ -12,6 +12,7 @@ import { OpenRouterProvider } from './OpenRouterProvider.js';
 import { OpenCodeZenProvider } from './OpenCodeZenProvider.js';
 import { MistralProvider } from './MistralProvider.js';
 import { GroqProvider } from './GroqProvider.js';
+import { ZyditProvider } from './ZyditProvider.js';
 
 export class ProviderManager {
     constructor() {
@@ -158,6 +159,13 @@ export class ProviderManager {
         // Check if Groq API key exists
         if (process.env.GROQ_API_KEY) {
             this.register(new GroqProvider());
+        } else {
+            console.log('[ProviderManager] Skipping Groq (no API key)');
+        }
+
+        // Check if ZYDIT API key exists
+        if (process.env.ZYDIT_API_KEY) {
+            this.register(new ZyditProvider());
         } else {
             console.log('[ProviderManager] Skipping Groq (no API key)');
         }
