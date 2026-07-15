@@ -13,6 +13,7 @@ import { OpenCodeZenProvider } from './OpenCodeZenProvider.js';
 import { MistralProvider } from './MistralProvider.js';
 import { GroqProvider } from './GroqProvider.js';
 import { ZyditProvider } from './ZyditProvider.js';
+import { ZaiProvider } from './ZaiProvider.js';
 
 export class ProviderManager {
     constructor() {
@@ -175,6 +176,13 @@ export class ProviderManager {
             this.register(new OpenCodeZenProvider('north-mini-code-free'));
         } else {
             console.log('[ProviderManager] Skipping OpenCode Zen (no API key)');
+        }
+
+        // Check if Z.ai API key exists
+        if (process.env.ZAI_API_KEY) {
+            this.register(new ZaiProvider());
+        } else {
+            console.log('[ProviderManager] Skipping Z.ai (no API key)');
         }
 
         // Show how many providers were registered
