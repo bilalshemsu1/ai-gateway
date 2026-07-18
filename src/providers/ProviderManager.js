@@ -15,6 +15,7 @@ import { GroqProvider } from './GroqProvider.js';
 import { ZyditProvider } from './ZyditProvider.js';
 import { ZaiProvider } from './ZaiProvider.js';
 import { AgnesProvider } from './AgnesProvider.js';
+import { NvidiaProvider } from './NvidiaProvider.js';
 
 export class ProviderManager {
     constructor() {
@@ -191,6 +192,13 @@ export class ProviderManager {
             this.register(new AgnesProvider());
         } else {
             console.log('[ProviderManager] Skipping Agnes (no API key)');
+        }
+
+        // Check if Nvidia API key exists
+        if (process.env.NVIDIA_API_KEY) {
+            this.register(new NvidiaProvider());
+        } else {
+            console.log('[ProviderManager] Skipping Nvidia (no API key)');
         }
 
         // Show how many providers were registered
