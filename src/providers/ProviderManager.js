@@ -14,6 +14,7 @@ import { MistralProvider } from './MistralProvider.js';
 import { GroqProvider } from './GroqProvider.js';
 import { ZyditProvider } from './ZyditProvider.js';
 import { ZaiProvider } from './ZaiProvider.js';
+import { AgnesProvider } from './AgnesProvider.js';
 
 export class ProviderManager {
     constructor() {
@@ -168,7 +169,7 @@ export class ProviderManager {
         if (process.env.ZYDIT_API_KEY) {
             this.register(new ZyditProvider());
         } else {
-            console.log('[ProviderManager] Skipping Groq (no API key)');
+            console.log('[ProviderManager] Skipping Zydit (no API key)');
         }
 
         // Check if OpenCode Zen API key exists
@@ -183,6 +184,13 @@ export class ProviderManager {
             this.register(new ZaiProvider());
         } else {
             console.log('[ProviderManager] Skipping Z.ai (no API key)');
+        }
+
+        // Check if Agnes API key exists
+        if (process.env.AGNES_API_KEY) {
+            this.register(new AgnesProvider());
+        } else {
+            console.log('[ProviderManager] Skipping Agnes (no API key)');
         }
 
         // Show how many providers were registered
