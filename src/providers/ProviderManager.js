@@ -1,10 +1,16 @@
 /**
- * This file manages all AI providers (Gemini, OpenRouter, etc.)
+ * ProviderManager - Manages all AI providers
  * 
- * Think of it like a restaurant manager:
- * - Has a list of all chefs (providers)
- * - Picks the least busy chef for each order
- * - Tracks how many orders each chef handled
+ * Responsibilities:
+ *   - Register/unregister providers
+ *   - Select least-busy provider for load balancing
+ *   - Provide failover order (least busy first)
+ *   - Track provider availability with caching
+ * 
+ * Load Balancing:
+ *   Uses request count to pick least busy provider.
+ *   Counter is incremented AFTER successful provider call,
+ *   not during selection, to avoid skewing on failures.
  */
 
 import { GeminiProvider } from './GeminiProvider.js';
@@ -17,44 +23,67 @@ import { ZaiProvider } from './ZaiProvider.js';
 import { AgnesProvider } from './AgnesProvider.js';
 import { NvidiaProvider } from './NvidiaProvider.js';
 
+// Cache availability for 5 minutes to avoid spamming provider APIs
+const AVAILABILITY_CACHE_TTL = 5 * 60 * 1000;
+
 export class ProviderManager {
     constructor() {
-        // List of all available providers
-        // Example: { "Gemini": geminiProvider, "OpenRouter": openRouterProvider }
+        // Provider instances keyed by name
         this.providers = {};
 
-        // Track how many requests each provider handled
-        // Example: { "Gemini": 5, "OpenRouter": 2 }
+        // Request count per provider for load balancing
         this.requestCount = {};
+
+        // Cached availability status
+        this.availabilityCache = {};
     }
 
     /**
-     * Add a provider to our list
+     * Register a provider instance
      * 
-     * Example:
-     * register(geminiProvider)
-     * → this.providers["Gemini"] = geminiProvider
-     * → this.requestCount["Gemini"] = 0
+     * @param {BaseProvider} provider - Provider to register
      */
     register(provider) {
         this.providers[provider.name] = provider;
         this.requestCount[provider.name] = 0;
+        this.availabilityCache[provider.name] = { available: null, lastCheck: 0 };
         console.log(`[ProviderManager] Registered: ${provider.name}`);
     }
 
     /**
-     * Get the provider with fewest requests (least busy)
+     * Increment request count for a provider (call after successful request)
      * 
-     * Example:
-     * - Gemini handled 5 requests
-     * - OpenRouter handled 2 requests
-     * → Return OpenRouter (least busy)
+     * @param {string} name - Provider name
+     */
+    incrementCount(name) {
+        if (this.requestCount[name] !== undefined) {
+            this.requestCount[name]++;
+        }
+    }
+
+    /**
+     * Decrement request count for a provider (call on failure to rebalance)
+     * 
+     * @param {string} name - Provider name
+     */
+    decrementCount(name) {
+        if (this.requestCount[name] !== undefined && this.requestCount[name] > 0) {
+            this.requestCount[name]--;
+        }
+    }
+
+    /**
+     * Get provider with fewest requests (least busy)
+     * 
+     * NOTE: Does NOT increment counter. Caller must call
+     * incrementCount() on success or decrementCount() on failure.
+     * 
+     * @param {string} requestedModel - Model name or "auto"
+     * @returns {BaseProvider|null} Selected provider or null
      */
     getBestProvider(requestedModel) {
-        // Get all provider names
         const providerNames = Object.keys(this.providers);
 
-        // No providers? Return null
         if (providerNames.length === 0) {
             return null;
         }
@@ -65,27 +94,19 @@ export class ProviderManager {
 
         for (const name of providerNames) {
             const count = this.requestCount[name];
-            
             if (count < lowestCount) {
                 lowestCount = count;
                 bestName = name;
             }
         }
 
-        // Increase count for selected provider
-        this.requestCount[bestName]++;
-
-        console.log(`[ProviderManager] Selected: ${bestName} (${lowestCount} previous requests)`);
-
-        // Return the provider object
         return this.providers[bestName];
     }
 
     /**
      * Get all providers sorted by least busy (for failover)
      * 
-     * Returns array like: [openCodeZen, gemini, openRouter]
-     * (sorted by fewest requests first)
+     * @returns {BaseProvider[]} Array of providers sorted by request count
      */
     getAllProviders() {
         const providerNames = Object.keys(this.providers);
@@ -95,32 +116,40 @@ export class ProviderManager {
             return this.requestCount[a] - this.requestCount[b];
         });
 
-        // Return provider objects in order
         return providerNames.map(name => this.providers[name]);
     }
 
     /**
-     * Get status of all providers
+     * Get availability status of all providers
      * 
-     * Returns:
-     * {
-     *   "Gemini": { requests: 5, available: true },
-     *   "OpenRouter": { requests: 2, available: false }
-     * }
+     * Uses caching to avoid making API calls on every health check.
+     * Cache TTL: 5 minutes.
+     * 
+     * @returns {Object} Status map { "ProviderName": { requests, available } }
      */
     async getStatus() {
         const status = {};
+        const now = Date.now();
 
         for (const name of Object.keys(this.providers)) {
             const provider = this.providers[name];
-            
-            // Check if provider is working
-            let available = false;
+            const cached = this.availabilityCache[name];
 
-            try {
-                available = await provider.checkAvailability();
-            } catch (error) {
-                available = false;
+            let available;
+
+            // Use cached value if still valid
+            if (cached && (now - cached.lastCheck) < AVAILABILITY_CACHE_TTL && cached.available !== null) {
+                available = cached.available;
+            } else {
+                // Fresh check
+                try {
+                    available = await provider.checkAvailability();
+                } catch (error) {
+                    available = false;
+                }
+                
+                // Update cache
+                this.availabilityCache[name] = { available, lastCheck: now };
             }
 
             status[name] = {
@@ -133,75 +162,34 @@ export class ProviderManager {
     }
 
     /**
-     * Setup all providers at startup
+     * Initialize providers based on available API keys in environment
      * 
-     * Only registers providers that have API keys in .env file
+     * Only registers providers that have their API key configured.
      */
     initialize() {
-        // Check if Gemini API key exists
-        if (process.env.GEMINI_API_KEY) {
-            this.register(new GeminiProvider());
-        } else {
-            console.log('[ProviderManager] Skipping Gemini (no API key)');
+        const providerConfigs = [
+            { envKey: 'GEMINI_API_KEY', Provider: GeminiProvider },
+            { envKey: 'OPENROUTER_API_KEY', Provider: OpenRouterProvider },
+            { envKey: 'MISTRAL_API_KEY', Provider: MistralProvider },
+            { envKey: 'GROQ_API_KEY', Provider: GroqProvider },
+            { envKey: 'ZYDIT_API_KEY', Provider: ZyditProvider },
+            { envKey: 'OPENCODE_API_KEY', Provider: OpenCodeZenProvider, model: 'north-mini-code-free' },
+            { envKey: 'ZAI_API_KEY', Provider: ZaiProvider },
+            { envKey: 'AGNES_API_KEY', Provider: AgnesProvider },
+            { envKey: 'NVIDIA_API_KEY', Provider: NvidiaProvider },
+        ];
+
+        for (const config of providerConfigs) {
+            if (process.env[config.envKey]) {
+                const provider = config.model 
+                    ? new config.Provider(config.model)
+                    : new config.Provider();
+                this.register(provider);
+            } else {
+                console.log(`[ProviderManager] Skipping ${config.Provider.name} (no API key)`);
+            }
         }
 
-        // Check if OpenRouter API key exists
-        if (process.env.OPENROUTER_API_KEY) {
-            this.register(new OpenRouterProvider());
-        } else {
-            console.log('[ProviderManager] Skipping OpenRouter (no API key)');
-        }
-
-        // Check if Mistral API key exists
-        if (process.env.MISTRAL_API_KEY) {
-            this.register(new MistralProvider());
-        } else {
-            console.log('[ProviderManager] Skipping Mistral (no API key)');
-        }
-
-        // Check if Groq API key exists
-        if (process.env.GROQ_API_KEY) {
-            this.register(new GroqProvider());
-        } else {
-            console.log('[ProviderManager] Skipping Groq (no API key)');
-        }
-
-        // Check if ZYDIT API key exists
-        if (process.env.ZYDIT_API_KEY) {
-            this.register(new ZyditProvider());
-        } else {
-            console.log('[ProviderManager] Skipping Zydit (no API key)');
-        }
-
-        // Check if OpenCode Zen API key exists
-        if (process.env.OPENCODE_API_KEY) {
-            this.register(new OpenCodeZenProvider('north-mini-code-free'));
-        } else {
-            console.log('[ProviderManager] Skipping OpenCode Zen (no API key)');
-        }
-
-        // Check if Z.ai API key exists
-        if (process.env.ZAI_API_KEY) {
-            this.register(new ZaiProvider());
-        } else {
-            console.log('[ProviderManager] Skipping Z.ai (no API key)');
-        }
-
-        // Check if Agnes API key exists
-        if (process.env.AGNES_API_KEY) {
-            this.register(new AgnesProvider());
-        } else {
-            console.log('[ProviderManager] Skipping Agnes (no API key)');
-        }
-
-        // Check if Nvidia API key exists
-        if (process.env.NVIDIA_API_KEY) {
-            this.register(new NvidiaProvider());
-        } else {
-            console.log('[ProviderManager] Skipping Nvidia (no API key)');
-        }
-
-        // Show how many providers were registered
         const count = Object.keys(this.providers).length;
         console.log(`[ProviderManager] Ready with ${count} provider(s)`);
     }

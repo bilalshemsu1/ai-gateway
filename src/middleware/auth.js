@@ -1,18 +1,17 @@
 /**
- * Basic Auth Middleware
+ * Auth Middleware - Token-based authentication
  * 
- * Checks for API token in Authorization header
+ * Validates Bearer token from Authorization header against API_SECRET env var.
  * Usage: Authorization: Bearer <your-token>
+ * 
+ * SECURITY: Never log token values in production.
  */
 
 function auth(request, reply) {
     const authHeader = request.headers.authorization;
     
-    console.log('[Auth] Header received:', authHeader ? 'YES' : 'NO');
-    
     // Check if header exists
     if (!authHeader) {
-        console.log('[Auth] No header - returning 401');
         return reply.status(401).send({
             error: 'Unauthorized',
             message: 'Missing Authorization header'
@@ -21,19 +20,15 @@ function auth(request, reply) {
 
     // Extract token (remove "Bearer " prefix)
     const token = authHeader.replace('Bearer ', '');
-    console.log('[Auth] Token:', token);
-    console.log('[Auth] Expected:', process.env.API_SECRET);
 
-    // Check if token matches
+    // Check if token matches (constant-time comparison would be even better)
     if (token !== process.env.API_SECRET) {
-        console.log('[Auth] Token mismatch - returning 401');
         return reply.status(401).send({
             error: 'Unauthorized',
             message: 'Invalid token'
         });
     }
 
-    console.log('[Auth] Token valid - continuing');
     // Token valid — continue to route
 }
 

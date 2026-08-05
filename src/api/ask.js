@@ -1,118 +1,198 @@
 /**
- * API Routes for AI Chat
+ * API Routes for AI Chat (OpenAI-Compatible)
  * 
- * Simple version: Direct provider call, no queue
- * Flow: Request → Validate → Provider → Response
+ * Endpoints:
+ *   POST /v1/chat/completions - Send messages to AI (OpenAI format)
+ *   GET  /v1/providers        - List available providers
+ * 
+ * Flow: Request -> Auth -> Validate -> Provider -> Response
  */
+
 import { rateLimit } from '../middleware/rateLimiter.js';
 import { auth } from '../middleware/auth.js';
 
+// Request timeout for provider calls (ms)
+const PROVIDER_TIMEOUT = 30000;
+
 export default async function askRoutes(fastify, options) {
 
-    // POST /v1/chat - Send a prompt to AI
-    fastify.post('/v1/chat', async (request, reply) => {
-        console.log('[Handler] Request received');
+    /**
+     * POST /v1/chat/completions
+     * 
+     * OpenAI-compatible chat endpoint.
+     * 
+     * Request body:
+     *   {
+     *     "model": "auto" | "gpt-3.5-turbo" | "llama-3.1-8b-instant" | ...,
+     *     "messages": [
+     *       { "role": "user", "content": "Hello" }
+     *     ]
+     *   }
+     * 
+     * Response:
+     *   {
+     *     "id": "chatcmpl-abc123",
+     *     "object": "chat.completion",
+     *     "created": 1234567890,
+     *     "model": "llama-3.1-8b-instant",
+     *     "choices": [{
+     *       "index": 0,
+     *       "message": { "role": "assistant", "content": "Hi there!" },
+     *       "finish_reason": "stop"
+     *     }],
+     *     "usage": { "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0 },
+     *     "provider": "Groq",
+     *     "response_time": 450
+     *   }
+     */
+    fastify.post('/v1/chat/completions', { preHandler: auth }, async (request, reply) => {
         
-        // ========================================
-        // STEP 0: AUTH CHECK
-        // ========================================
-        const authHeader = request.headers.authorization;
-        if (!authHeader) {
-            return reply.status(401).send({ error: 'Unauthorized', message: 'Missing Authorization header' });
-        }
-        const token = authHeader.replace('Bearer ', '');
-        if (token !== process.env.API_SECRET) {
-            return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid token' });
-        }
-        console.log('[Auth] Token valid');
-        
-        const { prompt, model } = request.body;
-        console.log('[Handler] Body parsed, prompt:', prompt);
+        const { model, messages } = request.body;
 
-        console.log('\n--- NEW REQUEST ---');
-        console.log('Prompt:', prompt);
-        console.log('Model:', model || 'auto');
-
         // ========================================
-        // STEP 1: VALIDATE INPUT
+        // STEP 1: VALIDATE INPUT (OpenAI format)
         // ========================================
         
-        if (!prompt || typeof prompt !== 'string') {
-            console.log('ERROR: Invalid prompt');
+        // Validate messages array
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return reply.status(400).send({
-                error: 'Missing or invalid "prompt" field'
+                error: {
+                    message: 'Invalid request: "messages" must be a non-empty array',
+                    type: 'invalid_request_error',
+                    code: 'invalid_messages'
+                }
             });
         }
 
+        // Validate each message has role and content
+        for (const msg of messages) {
+            if (!msg.role || !msg.content) {
+                return reply.status(400).send({
+                    error: {
+                        message: 'Invalid request: each message must have "role" and "content"',
+                        type: 'invalid_request_error',
+                        code: 'invalid_message_format'
+                    }
+                });
+            }
+        }
+
+        // Extract the last user message as prompt
+        const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+        if (!lastUserMessage) {
+            return reply.status(400).send({
+                error: {
+                    message: 'Invalid request: at least one user message required',
+                    type: 'invalid_request_error',
+                    code: 'no_user_message'
+                }
+            });
+        }
+
+        const prompt = lastUserMessage.content;
+
+        // Validate prompt length
         if (prompt.length > 10000) {
-            console.log('ERROR: Prompt too long');
             return reply.status(400).send({
-                error: 'Prompt too long. Maximum 10000 characters.'
+                error: {
+                    message: 'Invalid request: prompt too long (max 10000 characters)',
+                    type: 'invalid_request_error',
+                    code: 'prompt_too_long'
+                }
             });
         }
 
-        console.log('✓ Input valid');
-
         // ========================================
-        // STEP 2: GET PROVIDER
+        // STEP 2: RATE LIMIT CHECK
         // ========================================
         
-        const provider = fastify.providerManager.getBestProvider(model);
-        const ip = request.ip
-        const limitResult = rateLimit(ip)
+        const ip = request.ip;
+        const limitResult = rateLimit(ip);
 
         if (!limitResult.allowed) {
-            console.log('ERROR: Rate limit exceeded for IP:', ip);
             return reply.status(429).send({
-                error: 'Too many requests',
-                retryAfter: limitResult.retryAfter,
-                message: `Rate limit exceeded. Try again in ${limitResult.retryAfter} seconds.`
+                error: {
+                    message: `Rate limit exceeded. Try again in ${limitResult.retryAfter} seconds.`,
+                    type: 'rate_limit_error',
+                    code: 'rate_limit_exceeded'
+                },
+                retry_after: limitResult.retryAfter
             });
         }
-        
-
-        console.log('✓ Provider selected:', provider.name);
 
         // ========================================
-        // STEP 3: CALL AI PROVIDER (with failover)
+        // STEP 3: SELECT PROVIDER
         // ========================================
         
-        // Get all providers sorted by least busy
+        const requestedModel = model || 'auto';
         const allProviders = fastify.providerManager.getAllProviders();
-        console.log('Available providers for failover:', allProviders.map(p => p.name).join(', '));
 
-        // Try each provider until one works
-        for (const currentProvider of allProviders) {
+        if (allProviders.length === 0) {
+            return reply.status(503).send({
+                error: {
+                    message: 'No AI providers available',
+                    type: 'server_error',
+                    code: 'no_providers'
+                }
+            });
+        }
+
+        // ========================================
+        // STEP 4: CALL PROVIDER (with failover)
+        // ========================================
+        
+        const providerManager = fastify.providerManager;
+
+        for (const provider of allProviders) {
             try {
                 const startTime = Date.now();
                 
-                console.log('Trying provider:', currentProvider.name);
-                const result = await currentProvider.generate(prompt);
+                // Call with timeout
+                const result = await Promise.race([
+                    provider.generate(prompt),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Provider timeout')), PROVIDER_TIMEOUT)
+                    )
+                ]);
                 
                 const responseTime = Date.now() - startTime;
-                console.log('✓ Provider responded in', responseTime, 'ms');
+                
+                // Increment counter on success
+                providerManager.incrementCount(provider.name);
 
                 // ========================================
-                // STEP 4: RETURN RESULT
+                // STEP 5: RETURN OPENAI-COMPATIBLE RESPONSE
                 // ========================================
                 
-                console.log('✓ Returning result');
                 return {
-                    answer: result.output,
-                    provider: result.provider,
+                    id: `chatcmpl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    object: 'chat.completion',
+                    created: Math.floor(Date.now() / 1000),
                     model: result.model,
+                    choices: [{
+                        index: 0,
+                        message: {
+                            role: 'assistant',
+                            content: result.output
+                        },
+                        finish_reason: 'stop'
+                    }],
+                    usage: {
+                        prompt_tokens: 0,
+                        completion_tokens: 0,
+                        total_tokens: 0
+                    },
+                    // Custom fields for gateway info
+                    provider: result.provider,
                     response_time: responseTime
                 };
 
             } catch (error) {
-                // Log the error but don't return yet — try next provider
-                console.log(`✗ ${currentProvider.name} failed:`, error.message);
+                // Decrement counter on failure to rebalance load
+                providerManager.decrementCount(provider.name);
                 
-                if (error.response) {
-                    console.log('  HTTP Status:', error.response.status);
-                }
-                
-                // Continue to next provider in the loop
+                // Log error but continue to next provider
+                console.log(`[Failover] ${provider.name} failed:`, error.message);
                 continue;
             }
         }
@@ -121,14 +201,22 @@ export default async function askRoutes(fastify, options) {
         // ALL PROVIDERS FAILED
         // ========================================
         
-        console.log('\n--- ALL PROVIDERS FAILED ---');
         return reply.status(500).send({
-            error: 'All AI providers failed',
-            tried: allProviders.map(p => p.name)
+            error: {
+                message: 'All AI providers failed',
+                type: 'server_error',
+                code: 'all_providers_failed',
+                tried: allProviders.map(p => p.name)
+            }
         });
     });
 
-    // GET /v1/providers - List available providers
+    /**
+     * GET /v1/providers
+     * 
+     * List available providers and their status.
+     * No authentication required.
+     */
     fastify.get('/v1/providers', async (request, reply) => {
         return fastify.providerManager.getStatus();
     });

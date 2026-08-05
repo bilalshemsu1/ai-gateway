@@ -62,31 +62,51 @@ Get free API keys:
 
 ## API
 
-All requests to `/v1/chat` require authentication.
+All requests to `/v1/chat/completions` require authentication.
 
-**Chat:**
+**Chat (OpenAI-compatible):**
 ```bash
-curl -X POST http://localhost:3001/v1/chat \
+curl -X POST http://localhost:3001/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-api-secret" \
-  -d '{"prompt": "Hello", "model": "auto"}'
+  -d '{
+    "model": "auto",
+    "messages": [
+      {"role": "user", "content": "Hello"}
+    ]
+  }'
 ```
 
 **Response:**
 ```json
 {
-  "answer": "Hi! How can I help?",
-  "provider": "Groq",
+  "id": "chatcmpl-1234567890-abc123",
+  "object": "chat.completion",
+  "created": 1234567890,
   "model": "llama-3.1-8b-instant",
+  "choices": [{
+    "index": 0,
+    "message": {
+      "role": "assistant",
+      "content": "Hi! How can I help?"
+    },
+    "finish_reason": "stop"
+  }],
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+  },
+  "provider": "Groq",
   "response_time": 450
 }
 ```
 
 **Without auth (fails):**
 ```bash
-curl -X POST http://localhost:3001/v1/chat \
+curl -X POST http://localhost:3001/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Hello"}'
+  -d '{"model": "auto", "messages": [{"role": "user", "content": "Hello"}]}'
 
 # Returns: 401 Unauthorized
 ```
