@@ -11,7 +11,7 @@ import axios from 'axios';
 
 export class GeminiProvider extends BaseProvider {
     constructor(model) {
-        super('Gemini');
+        super('Gemini', ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash', 'gemini-1.5-pro']);
         this.model = model || 'gemini-2.0-flash';
         this.apiKey = process.env.GEMINI_API_KEY;
         this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';

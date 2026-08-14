@@ -221,4 +221,31 @@ export default async function askRoutes(fastify, options) {
         return fastify.providerManager.getStatus();
     });
 
+    /**
+     * GET /v1/models
+     * 
+     * List available models in OpenAI-compatible format.
+     * No authentication required.
+     */
+    fastify.get('/v1/models', async (request, reply) => {
+        const providers = fastify.providerManager.getAllProviders();
+        const models = [];
+
+        for (const provider of providers) {
+            for (const modelId of provider.getModels()) {
+                models.push({
+                    id: modelId,
+                    object: 'model',
+                    owned_by: provider.name,
+                    created: Math.floor(Date.now() / 1000)
+                });
+            }
+        }
+
+        return {
+            object: 'list',
+            data: models
+        };
+    });
+
 }

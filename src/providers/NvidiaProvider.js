@@ -10,7 +10,7 @@ import axios from 'axios';
 
 export class NvidiaProvider extends BaseProvider {
     constructor(model) {
-        super('Nvidia');
+        super('Nvidia', ['thinkingmachines/inkling', 'meta/llama-3.1-8b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct']);
         this.model = model || 'thinkingmachines/inkling';
         this.apiKey = process.env.NVIDIA_API_KEY;
         this.baseUrl = 'https://integrate.api.nvidia.com/v1';

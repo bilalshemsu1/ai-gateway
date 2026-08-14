@@ -10,7 +10,7 @@ import axios from 'axios';
 
 export class ZyditProvider extends BaseProvider {
     constructor(model) {
-        super('Zydit');
+        super('Zydit', ['kimi-k2.5', 'deepseek-v3']);
         this.model = model || 'kimi-k2.5';
         this.apiKey = process.env.ZYDIT_API_KEY;
         this.baseUrl = 'https://api.zydit.in/v4';

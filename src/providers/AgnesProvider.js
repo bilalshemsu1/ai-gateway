@@ -10,7 +10,7 @@ import axios from 'axios';
 
 export class AgnesProvider extends BaseProvider {
     constructor(model) {
-        super('Agnes');
+        super('Agnes', ['agnes-2.0-flash', 'agnes-1.0-pro']);
         this.model = model || 'agnes-2.0-flash';
         this.apiKey = process.env.AGNES_API_KEY;
         this.baseUrl = 'https://apihub.agnes-ai.com/v1';

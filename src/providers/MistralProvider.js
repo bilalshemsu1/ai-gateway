@@ -10,7 +10,7 @@ import axios from 'axios';
 
 export class MistralProvider extends BaseProvider {
     constructor(model) {
-        super('Mistral');
+        super('Mistral', ['mistral-medium-latest', 'mistral-small-latest', 'mistral-large-latest', 'open-mixtral-8x7b']);
         this.model = model || 'mistral-medium-latest';
         this.apiKey = process.env.MISTRAL_API_KEY;
         this.baseUrl = 'https://api.mistral.ai/v1';

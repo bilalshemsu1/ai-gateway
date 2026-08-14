@@ -10,7 +10,7 @@ import axios from 'axios';
 
 export class ZaiProvider extends BaseProvider {
     constructor(model) {
-        super('Zai');
+        super('Zai', ['glm-4.7-flash', 'glm-4-plus', 'glm-4-air']);
         this.model = model || 'glm-4.7-flash';
         this.apiKey = process.env.ZAI_API_KEY;
         this.baseUrl = 'https://api.z.ai/api/paas/v4';

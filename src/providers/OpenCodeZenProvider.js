@@ -3,7 +3,7 @@ import axios from "axios";
 
 export class OpenCodeZenProvider extends BaseProvider {
     constructor(model) {
-        super("OpenCodeZen");
+        super("OpenCodeZen", ["north-mini-code-free"]);
         this.model = model;
         this.apiKey = process.env.OPENCODE_API_KEY;
         this.baseUrl = "https://opencode.ai/zen/v1"

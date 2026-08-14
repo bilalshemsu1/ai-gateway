@@ -10,7 +10,7 @@ import axios from 'axios';
 
 export class OpenRouterProvider extends BaseProvider {
     constructor(model) {
-        super('OpenRouter');
+        super('OpenRouter', ['openai/gpt-3.5-turbo', 'openai/gpt-4o-mini', 'anthropic/claude-3-haiku', 'meta-llama/llama-3.1-8b-instruct']);
         this.model = model || 'openai/gpt-3.5-turbo';
         this.apiKey = process.env.OPENROUTER_API_KEY;
         this.baseUrl = 'https://openrouter.ai/api/v1';
