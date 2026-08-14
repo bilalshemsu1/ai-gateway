@@ -11,7 +11,7 @@ import axios from 'axios';
 export class GroqProvider extends BaseProvider {
     constructor(model) {
         super('Groq');
-        this.model = model || 'llama-3.1-8b-instant';
+        this.model = model || 'openai/gpt-oss-20b';
         this.apiKey = process.env.GROQ_API_KEY;
         this.baseUrl = 'https://api.groq.com/openai/v1';
     }

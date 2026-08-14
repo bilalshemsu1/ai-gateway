@@ -62,9 +62,10 @@ Get free API keys:
 
 ## API
 
-All requests to `/v1/chat/completions` require authentication.
+The full API reference, request bodies, responses, errors, and examples are in [docs/API.md](docs/API.md).
 
-**Chat (OpenAI-compatible):**
+Quick start:
+
 ```bash
 curl -X POST http://localhost:3001/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -75,50 +76,6 @@ curl -X POST http://localhost:3001/v1/chat/completions \
       {"role": "user", "content": "Hello"}
     ]
   }'
-```
-
-**Response:**
-```json
-{
-  "id": "chatcmpl-1234567890-abc123",
-  "object": "chat.completion",
-  "created": 1234567890,
-  "model": "llama-3.1-8b-instant",
-  "choices": [{
-    "index": 0,
-    "message": {
-      "role": "assistant",
-      "content": "Hi! How can I help?"
-    },
-    "finish_reason": "stop"
-  }],
-  "usage": {
-    "prompt_tokens": 0,
-    "completion_tokens": 0,
-    "total_tokens": 0
-  },
-  "provider": "Groq",
-  "response_time": 450
-}
-```
-
-**Without auth (fails):**
-```bash
-curl -X POST http://localhost:3001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model": "auto", "messages": [{"role": "user", "content": "Hello"}]}'
-
-# Returns: 401 Unauthorized
-```
-
-**Health check (no auth required):**
-```bash
-curl http://localhost:3001/health
-```
-
-**List providers (no auth required):**
-```bash
-curl http://localhost:3001/v1/providers
 ```
 
 ## How It Works

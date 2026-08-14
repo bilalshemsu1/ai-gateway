@@ -7,7 +7,7 @@
  * SECURITY: Never log token values in production.
  */
 
-function auth(request, reply) {
+async function auth(request, reply) {
     const authHeader = request.headers.authorization;
     
     // Check if header exists
@@ -21,7 +21,7 @@ function auth(request, reply) {
     // Extract token (remove "Bearer " prefix)
     const token = authHeader.replace('Bearer ', '');
 
-    // Check if token matches (constant-time comparison would be even better)
+    // Check if token matches
     if (token !== process.env.API_SECRET) {
         return reply.status(401).send({
             error: 'Unauthorized',
