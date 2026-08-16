@@ -155,6 +155,17 @@ export default async function askRoutes(fastify, options) {
                     )
                 ]);
                 
+                // Check if output is valid, treat null/undefined as failure for failover
+                if (!result.output) {
+                    const responseTime = Date.now() - startTime;
+                    // Decrement counter on failure to rebalance load
+                    providerManager.decrementCount(provider.name);
+                    
+                    // Log error but continue to next provider
+                    console.log(`[Failover] ${provider.name} returned empty output`);
+                    continue;
+                }
+                
                 const responseTime = Date.now() - startTime;
                 
                 // Increment counter on success
