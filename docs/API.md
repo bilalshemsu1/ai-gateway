@@ -91,7 +91,9 @@ Body rules enforced by the server:
 Important behavior:
 
 - the server only uses the last user message as the prompt
-- provider selection is automatic and based on least-busy failover order
+- `model: "auto"` tries configured providers in least-successful-requests order; a specific model ID routes only to the provider that advertises it
+- Cloudflare Workers AI is enabled when both `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are configured
+- Cloudflare's default model is `@cf/zai-org/glm-4.7-flash`; passing this model ID routes the request directly to Cloudflare
 - if one provider fails, the gateway tries the next provider
 - each provider call has a 30 second timeout
 

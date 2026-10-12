@@ -125,7 +125,17 @@ export default async function askRoutes(fastify, options) {
         // ========================================
         
         const requestedModel = model || 'auto';
-        const allProviders = fastify.providerManager.getAllProviders();
+        const allProviders = fastify.providerManager.getProvidersForModel(requestedModel);
+
+        if (requestedModel !== 'auto' && allProviders.length === 0) {
+            return reply.status(400).send({
+                error: {
+                    message: `Unsupported model: ${requestedModel}`,
+                    type: 'invalid_request_error',
+                    code: 'model_not_found'
+                }
+            });
+        }
 
         if (allProviders.length === 0) {
             return reply.status(503).send({
@@ -149,7 +159,7 @@ export default async function askRoutes(fastify, options) {
                 
                 // Call with timeout
                 const result = await Promise.race([
-                    provider.generate(prompt),
+                    provider.generate(prompt, requestedModel === 'auto' ? undefined : requestedModel),
                     new Promise((_, reject) => 
                         setTimeout(() => reject(new Error('Provider timeout')), PROVIDER_TIMEOUT)
                     )

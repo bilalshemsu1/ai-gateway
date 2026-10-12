@@ -21,6 +21,7 @@ import { ZyditProvider } from './ZyditProvider.js';
 import { ZaiProvider } from './ZaiProvider.js';
 import { AgnesProvider } from './AgnesProvider.js';
 import { NvidiaProvider } from './NvidiaProvider.js';
+import { CloudflareProvider } from './CloudflareProvider.js';
 
 // Cache availability for 5 minutes to avoid spamming provider APIs
 const AVAILABILITY_CACHE_TTL = 5 * 60 * 1000;
@@ -118,6 +119,14 @@ export class ProviderManager {
         return providerNames.map(name => this.providers[name]);
     }
 
+    getProvidersForModel(model) {
+        if (!model || model === 'auto') {
+            return this.getAllProviders();
+        }
+
+        return this.getAllProviders().filter(provider => provider.getModels().includes(model));
+    }
+
     /**
      * Get availability status of all providers
      * 
@@ -166,6 +175,12 @@ export class ProviderManager {
      * Only registers providers that have their API key configured.
      */
     initialize() {
+        if (process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) {
+            this.register(new CloudflareProvider());
+        } else {
+            console.log('[ProviderManager] Skipping Cloudflare (missing account ID or API token)');
+        }
+
         const providerConfigs = [
             { envKey: 'GEMINI_API_KEY', Provider: GeminiProvider },
             { envKey: 'OPENROUTER_API_KEY', Provider: OpenRouterProvider },

@@ -4,7 +4,7 @@ Open-source AI orchestration service. One API, multiple AI providers.
 
 ## Features
 
-- Multiple AI providers (Gemini, Groq, Mistral, OpenRouter, Zydit, Zai, Agnes, Nvidia)
+- Multiple AI providers (Gemini, Groq, Mistral, OpenRouter, Zydit, Zai, Agnes, Nvidia, Cloudflare Workers AI)
 - Automatic failover when a provider fails
 - Rate limiting (15 requests/minute per IP)
 - Token authentication
@@ -46,7 +46,11 @@ ZYDIT_API_KEY=your_key
 ZAI_API_KEY=your_key
 AGNES_API_KEY=your_key
 NVIDIA_API_KEY=your_key
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+CLOUDFLARE_API_TOKEN=your_workers_ai_token
 ```
+
+Cloudflare Workers AI uses `@cf/zai-org/glm-4.7-flash` by default. You can call it directly by setting that model ID in the chat request; use `"auto"` to include it in normal provider failover.
 
 Get free API keys:
 - Gemini: https://ai.google.dev
@@ -57,6 +61,7 @@ Get free API keys:
 - Zai: https://z.ai
 - Agnes: https://apihub.agnes-ai.com
 - Nvidia: https://build.nvidia.com
+- Cloudflare Workers AI: https://dash.cloudflare.com/
 
 ## API
 
@@ -105,6 +110,7 @@ All providers failed? Return error
 | Zai | Yes | Fast |
 | Agnes | Yes | Fast |
 | Nvidia | Yes | Fast |
+| Cloudflare Workers AI | 10,000 neurons/day on the free plan | Fast |
 
 ## License
 
