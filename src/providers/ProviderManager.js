@@ -15,7 +15,6 @@
 
 import { GeminiProvider } from './GeminiProvider.js';
 import { OpenRouterProvider } from './OpenRouterProvider.js';
-import { OpenCodeZenProvider } from './OpenCodeZenProvider.js';
 import { MistralProvider } from './MistralProvider.js';
 import { GroqProvider } from './GroqProvider.js';
 import { ZyditProvider } from './ZyditProvider.js';
@@ -173,7 +172,7 @@ export class ProviderManager {
             { envKey: 'MISTRAL_API_KEY', Provider: MistralProvider },
             { envKey: 'GROQ_API_KEY', Provider: GroqProvider },
             { envKey: 'ZYDIT_API_KEY', Provider: ZyditProvider },
-            { envKey: 'OPENCODE_API_KEY', Provider: OpenCodeZenProvider, model: 'north-mini-code-free' },
+
             { envKey: 'ZAI_API_KEY', Provider: ZaiProvider },
             { envKey: 'AGNES_API_KEY', Provider: AgnesProvider },
             { envKey: 'NVIDIA_API_KEY', Provider: NvidiaProvider },

@@ -4,7 +4,7 @@ Open-source AI orchestration service. One API, multiple AI providers.
 
 ## Features
 
-- Multiple AI providers (Gemini, Groq, Mistral, OpenRouter, OpenCodeZen, Zydit, Zai, Agnes, Nvidia)
+- Multiple AI providers (Gemini, Groq, Mistral, OpenRouter, Zydit, Zai, Agnes, Nvidia)
 - Automatic failover when a provider fails
 - Rate limiting (15 requests/minute per IP)
 - Token authentication
@@ -42,7 +42,6 @@ GEMINI_API_KEY=your_key
 GROQ_API_KEY=your_key
 MISTRAL_API_KEY=your_key
 OPENROUTER_API_KEY=your_key
-OPENCODE_API_KEY=your_key
 ZYDIT_API_KEY=your_key
 ZAI_API_KEY=your_key
 AGNES_API_KEY=your_key
@@ -54,7 +53,6 @@ Get free API keys:
 - Groq: https://console.groq.com
 - Mistral: https://console.mistral.ai
 - OpenRouter: https://openrouter.ai
-- OpenCodeZen: https://opencode.ai
 - Zydit: https://zydit.in
 - Zai: https://z.ai
 - Agnes: https://apihub.agnes-ai.com
@@ -103,7 +101,6 @@ All providers failed? Return error
 | Gemini | 60 req/min | Fast |
 | Mistral | Yes | Fast |
 | OpenRouter | Varies | Medium |
-| OpenCodeZen | Yes | Medium |
 | Zydit | Yes | Fast |
 | Zai | Yes | Fast |
 | Agnes | Yes | Fast |
