@@ -23,6 +23,6 @@
     "autocannon": "^8.0.0",
     "axios": "^1.20.0",
     "dotenv": "^17.4.2",
-    "fastify": "^5.12.5"
+    "fastify": "^5.12.6"
   }
 }
